@@ -410,8 +410,8 @@ func buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, s
 	}
 
 	// Parse CPU / Memory
-	// limitCPU, _ := resource.ParseQuantity(resources.Limits.CPU)
-	// limitMemory, _ := resource.ParseQuantity(resources.Limits.Memory)
+	limitCPU, _ := resource.ParseQuantity(resources.Limits.CPU)
+	limitMemory, _ := resource.ParseQuantity(resources.Limits.Memory)
 	requestCPU, _ := resource.ParseQuantity(resources.Requests.CPU)
 	requestMemory, _ := resource.ParseQuantity(resources.Requests.Memory)
 
@@ -577,10 +577,10 @@ func buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, s
 								},
 							},
 							Resources: v1.ResourceRequirements{
-								// Limits: v1.ResourceList{
-								// 	"cpu":    limitCPU,
-								// 	"memory": limitMemory,
-								// },
+								Limits: v1.ResourceList{
+									"cpu":    limitCPU,
+									"memory": limitMemory,
+								},
 								Requests: v1.ResourceList{
 									"cpu":    requestCPU,
 									"memory": requestMemory,
@@ -659,15 +659,14 @@ func (k *K8sutil) CreateDataNodeDeployment(deploymentType string, replicas *int3
 
 	statefulSetName := fmt.Sprintf("%s-%s", deploymentName, storageClass)
 
+	statefulSet := buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, storageClass, dataDiskSize, javaOptions, serviceAccountName,
+		statsdEndpoint, networkHost, replicas, useSSL, resources, imagePullSecrets, imagePullPolicy)
 	// Check if StatefulSet exists
-	statefulSet, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Get(statefulSetName, metav1.GetOptions{})
+	storedStatefulSet, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Get(statefulSetName, metav1.GetOptions{})
 
-	if len(statefulSet.Name) == 0 {
+	if err != nil {
 
 		logrus.Infof("StatefulSet %s not found, creating...", statefulSetName)
-
-		statefulSet := buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, storageClass, dataDiskSize, javaOptions, serviceAccountName,
-			statsdEndpoint, networkHost, replicas, useSSL, resources, imagePullSecrets, imagePullPolicy)
 
 		if _, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Create(statefulSet); err != nil {
 			logrus.Error("Could not create stateful set: ", err)
@@ -698,6 +697,16 @@ func (k *K8sutil) CreateDataNodeDeployment(deploymentType string, replicas *int3
 				return err
 			}
 		}
+
+		if statefulSet.Spec.Template.Spec.Resources != resources {
+			statefulSet.Spec.Template.Spec.Resources = resources
+			_, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Update(statefulSet)
+			if err != nil {
+				logrus.Error("Could not change resource limits: ", err)
+				return err
+			}
+		}
+
 	}
 
 	return nil

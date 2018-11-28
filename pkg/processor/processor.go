@@ -161,6 +161,7 @@ func (p *Processor) refreshClusters() error {
 					DataNodeReplicas:    cluster.Spec.DataNodeReplicas,
 					Zones:               cluster.Spec.Zones,
 					DataDiskSize:        cluster.Spec.DataDiskSize,
+					MasterDiskSize:      cluster.Spec.MasterDiskSize,
 					JavaOptions:         cluster.Spec.JavaOptions,
 					NetworkHost:         cluster.Spec.NetworkHost,
 					KeepSecretsOnDelete: cluster.Spec.KeepSecretsOnDelete,

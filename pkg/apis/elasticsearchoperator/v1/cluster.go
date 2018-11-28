@@ -80,6 +80,9 @@ type ClusterSpec struct {
 	// to the data nodes in the ES cluster
 	DataDiskSize string `json:"data-volume-size"`
 
+ // MasterDiskSize specifies size of persistent volume for Master nodes
+	MasterDiskSize string `json:"master-volume-size"`
+
 	// ElasticSearchImage specifies the docker image to use (optional)
 	ElasticSearchImage string `json:"elastic-search-image"`
 
