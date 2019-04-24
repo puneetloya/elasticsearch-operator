@@ -109,7 +109,7 @@ func (s *Scheduler) Init() error {
 // CreateSnapshotRepository creates the snapshot repository cronjob
 func (s *Scheduler) CreateSnapshotRepository() error {
 	// TODO: This should wait until the api goes green and cluster is healthy
-	return s.CreateCronJob(s.CRD.Namespace, s.CRD.ClusterName, cronActionRepository, s.CRD.CronSchedule)
+	return s.CreateJob(s.CRD.Namespace, s.CRD.ClusterName, cronActionRepository)
 }
 
 // CreateSnapshot creates snapshot cronjob
@@ -254,6 +254,71 @@ func (s *Scheduler) CreateCronJob(namespace, clusterName, action, cronSchedule s
 	logrus.Infof("CronJob %v succesfully created ! ", snapshotName)
 
 	return nil
+}
+
+
+func (s *Scheduler) CreateJob(namespace, clusterName, action string) error {
+	snapshotName := getSnapshotname(clusterName, action)
+	job, err := s.Kclient.BatchV1().Jobs(namespace).Get(snapshotName, metav1.GetOptions{})
+
+	if len(job.Name) == 0 {
+
+		requestCPU, _ := resource.ParseQuantity("100m")
+		requestMemory, _ := resource.ParseQuantity("256Mi")
+
+		job := &batchv1.Job{
+		    ObjectMeta: metav1.ObjectMeta{
+		        Name: snapshotName,
+						Labels: map[string]string {
+							"app":         "elasticsearch-operator",
+							"clusterName": clusterName,
+							"name":        snapshotName,
+						},
+		    },
+		    Spec: batchv1.JobSpec{
+					Template: apicore.PodTemplateSpec{
+							Spec: apicore.PodSpec{
+									RestartPolicy: "OnFailure",
+									Containers: []apicore.Container{
+										apicore.Container{
+											Name:            snapshotName,
+											Image:           s.CRD.Image,
+											ImagePullPolicy: "Always",
+											Resources: apicore.ResourceRequirements{
+												Requests: apicore.ResourceList{
+													"cpu":    requestCPU,
+													"memory": requestMemory,
+												},
+											},
+											Args: []string{
+												fmt.Sprintf("--action=%s", action),
+												fmt.Sprintf("--repo-type=%s", s.CRD.RepoType),
+												fmt.Sprintf("--bucket-name=%s", s.CRD.BucketName),
+												fmt.Sprintf("--elastic-url=%s", s.CRD.ElasticURL),
+												fmt.Sprintf("--auth-username=%s", s.CRD.Auth.UserName),
+												fmt.Sprintf("--auth-password=%s", s.CRD.Auth.Password),
+												fmt.Sprintf("--repo-auth-access-key=%s", s.CRD.RepoAuth.RepoAccessKey),
+												fmt.Sprintf("--repo-auth-secret-key=%s", s.CRD.RepoAuth.RepoSecretKey),
+												fmt.Sprintf("--repo-region=%s", s.CRD.RepoRegion),
+												fmt.Sprintf("--use-ssl=%t", s.CRD.UseSSL),
+											},
+										},
+									},
+							},
+						},
+					},
+			}
+
+			if _, err := s.Kclient.BatchV1().Jobs(namespace).Create(job); err != nil {
+				logrus.Error("Could not create CronJob! ", err)
+				return err
+			}
+		} else if err != nil {
+			logrus.Error("Could not get job! ", err)
+			return err
+		}
+		logrus.Infof("job %v succesfully created ! ", snapshotName)
+		return nil
 }
 
 // GetSnapshotname gets the name of the snapshot cron job

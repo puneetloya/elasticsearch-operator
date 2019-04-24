@@ -129,6 +129,12 @@ type ClusterSpec struct {
 
 	// serviceAccount to use when running nodes
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	//s3 endpoint for s3 client setup
+	S3Endpoint string `json:"s3-endpoint,omitempty"`
+
+	//s3 protocol for s3 client setup
+	S3Protocol string `json:"s3-protocol,omitempty"`
 }
 
 // ImagePullSecrets defines credentials to pull image from private repository
@@ -155,7 +161,6 @@ type Snapshot struct {
 	// Authentication defines credentials for snapshot requests
 	Authentication Authentication `json:"authentication"`
 
-	// Defines the image to run cronjobs
 	Image string `json:"image"`
 
 	RepoRegion string `json:"repo-region"`

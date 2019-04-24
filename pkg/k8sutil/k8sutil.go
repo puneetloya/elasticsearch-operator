@@ -396,7 +396,7 @@ func processDeploymentType(deploymentType string, clusterName string) (string, s
 }
 
 func buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, storageClass, dataDiskSize, javaOptions, serviceAccountName,
-	statsdEndpoint, networkHost string, replicas *int32, useSSL *bool, resources myspec.Resources, imagePullSecrets []myspec.ImagePullSecrets, imagePullPolicy string) *apps.StatefulSet {
+	statsdEndpoint, networkHost, s3Endpoint, s3Protocol string, replicas *int32, useSSL *bool, resources myspec.Resources, imagePullSecrets []myspec.ImagePullSecrets, imagePullPolicy string) *apps.StatefulSet {
 
 	_, role, isNodeMaster, isNodeData := processDeploymentType(deploymentType, clusterName)
 
@@ -410,8 +410,8 @@ func buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, s
 	}
 
 	// Parse CPU / Memory
-	limitCPU, _ := resource.ParseQuantity(resources.Limits.CPU)
-	limitMemory, _ := resource.ParseQuantity(resources.Limits.Memory)
+	// limitCPU, _ := resource.ParseQuantity(resources.Limits.CPU)
+	// limitMemory, _ := resource.ParseQuantity(resources.Limits.Memory)
 	requestCPU, _ := resource.ParseQuantity(resources.Requests.CPU)
 	requestMemory, _ := resource.ParseQuantity(resources.Requests.Memory)
 
@@ -555,6 +555,14 @@ func buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, s
 									Name:  "NETWORK_HOST",
 									Value: networkHost,
 								},
+								v1.EnvVar{
+									Name:  "S3_ENDPOINT",
+									Value: s3Endpoint,
+								},
+								v1.EnvVar{
+									Name:  "S3_PROTOCOL",
+									Value: s3Protocol,
+								},
 							},
 							Ports: []v1.ContainerPort{
 								v1.ContainerPort{
@@ -577,10 +585,10 @@ func buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, s
 								},
 							},
 							Resources: v1.ResourceRequirements{
-								Limits: v1.ResourceList{
-									"cpu":    limitCPU,
-									"memory": limitMemory,
-								},
+								// Limits: v1.ResourceList{
+								// 	"cpu":    limitCPU,
+								// 	"memory": limitMemory,
+								// },
 								Requests: v1.ResourceList{
 									"cpu":    requestCPU,
 									"memory": requestMemory,
@@ -653,20 +661,21 @@ func buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, s
 
 // CreateDataNodeDeployment creates the data node deployment
 func (k *K8sutil) CreateDataNodeDeployment(deploymentType string, replicas *int32, baseImage, storageClass string, dataDiskSize string, resources myspec.Resources,
-	imagePullSecrets []myspec.ImagePullSecrets, imagePullPolicy, serviceAccountName, clusterName, statsdEndpoint, networkHost, namespace, javaOptions string, useSSL *bool, esUrl string) error {
+	imagePullSecrets []myspec.ImagePullSecrets, imagePullPolicy, serviceAccountName, clusterName, statsdEndpoint, networkHost, namespace, javaOptions, s3Endpoint, s3Protocol string, useSSL *bool, esUrl string) error {
 
 	deploymentName, _, _, _ := processDeploymentType(deploymentType, clusterName)
 
 	statefulSetName := fmt.Sprintf("%s-%s", deploymentName, storageClass)
 
-	statefulSet := buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, storageClass, dataDiskSize, javaOptions, serviceAccountName,
-		statsdEndpoint, networkHost, replicas, useSSL, resources, imagePullSecrets, imagePullPolicy)
 	// Check if StatefulSet exists
-	storedStatefulSet, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Get(statefulSetName, metav1.GetOptions{})
+	statefulSet, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Get(statefulSetName, metav1.GetOptions{})
 
-	if err != nil {
+	if len(statefulSet.Name) == 0 {
 
 		logrus.Infof("StatefulSet %s not found, creating...", statefulSetName)
+
+		statefulSet := buildStatefulSet(statefulSetName, clusterName, deploymentType, baseImage, storageClass, dataDiskSize, javaOptions, serviceAccountName,
+			statsdEndpoint, networkHost, s3Endpoint, s3Protocol, replicas, useSSL, resources, imagePullSecrets, imagePullPolicy)
 
 		if _, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Create(statefulSet); err != nil {
 			logrus.Error("Could not create stateful set: ", err)
@@ -697,16 +706,6 @@ func (k *K8sutil) CreateDataNodeDeployment(deploymentType string, replicas *int3
 				return err
 			}
 		}
-
-		if statefulSet.Spec.Template.Spec.Resources != resources {
-			statefulSet.Spec.Template.Spec.Resources = resources
-			_, err := k.Kclient.AppsV1beta2().StatefulSets(namespace).Update(statefulSet)
-			if err != nil {
-				logrus.Error("Could not change resource limits: ", err)
-				return err
-			}
-		}
-
 	}
 
 	return nil

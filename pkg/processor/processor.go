@@ -165,6 +165,8 @@ func (p *Processor) refreshClusters() error {
 					JavaOptions:         cluster.Spec.JavaOptions,
 					NetworkHost:         cluster.Spec.NetworkHost,
 					KeepSecretsOnDelete: cluster.Spec.KeepSecretsOnDelete,
+					S3Endpoint: 				 cluster.Spec.S3Endpoint,
+					S3Protocol: 				 cluster.Spec.S3Protocol,
 					Snapshot: myspec.Snapshot{
 						SchedulerEnabled: cluster.Spec.Snapshot.SchedulerEnabled,
 						RepoType:         cluster.Spec.Snapshot.RepoType,
@@ -367,7 +369,7 @@ func (p *Processor) processElasticSearchCluster(c *myspec.ElasticsearchCluster) 
 	}
 
 	if err := p.k8sclient.CreateClientDeployment(baseImage, &c.Spec.ClientNodeReplicas, c.Spec.JavaOptions,
-		c.Spec.Resources, c.Spec.ImagePullSecrets, c.Spec.ImagePullPolicy, c.Spec.ServiceAccountName, c.ObjectMeta.Name, c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost, c.ObjectMeta.Namespace, c.Spec.UseSSL); err != nil {
+		c.Spec.Resources, c.Spec.ImagePullSecrets, c.Spec.ImagePullPolicy, c.Spec.ServiceAccountName, c.ObjectMeta.Name, c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost, c.ObjectMeta.Namespace, c.Spec.S3Endpoint, c.Spec.S3Protocol, c.Spec.UseSSL); err != nil {
 		logrus.Error("Error creating client deployment ", err)
 		return err
 	}
@@ -391,7 +393,7 @@ func (p *Processor) processElasticSearchCluster(c *myspec.ElasticsearchCluster) 
 		for index, count := range zoneDistributionMaster {
 			if err := p.k8sclient.CreateDataNodeDeployment("master", &count, baseImage, c.Spec.Zones[index], c.Spec.DataDiskSize, c.Spec.Resources,
 				c.Spec.ImagePullSecrets, c.Spec.ImagePullPolicy, c.Spec.ServiceAccountName, c.ObjectMeta.Name, c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost,
-				c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
+				c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.S3Endpoint, c.Spec.S3Protocol, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
 				logrus.Error("Error creating master node deployment ", err)
 				return err
 			}
@@ -401,7 +403,7 @@ func (p *Processor) processElasticSearchCluster(c *myspec.ElasticsearchCluster) 
 		for index, count := range zoneDistributionData {
 			if err := p.k8sclient.CreateDataNodeDeployment("data", &count, baseImage, c.Spec.Zones[index], c.Spec.DataDiskSize, c.Spec.Resources,
 				c.Spec.ImagePullSecrets, c.Spec.ImagePullPolicy, c.Spec.ServiceAccountName, c.ObjectMeta.Name, c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost,
-				c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
+				c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.S3Endpoint, c.Spec.S3Protocol, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
 				logrus.Error("Error creating data node deployment ", err)
 
 				return err
@@ -417,7 +419,7 @@ func (p *Processor) processElasticSearchCluster(c *myspec.ElasticsearchCluster) 
 		// Create Master Nodes
 		if err := p.k8sclient.CreateDataNodeDeployment("master", func() *int32 { i := int32(c.Spec.MasterNodeReplicas); return &i }(), baseImage, c.Spec.Storage.StorageClass,
 			c.Spec.DataDiskSize, c.Spec.Resources, c.Spec.ImagePullSecrets, c.Spec.ImagePullPolicy, c.Spec.ServiceAccountName, c.ObjectMeta.Name,
-			c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost, c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
+			c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost, c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.S3Endpoint, c.Spec.S3Protocol, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
 			logrus.Error("Error creating master node deployment ", err)
 
 			return err
@@ -426,7 +428,7 @@ func (p *Processor) processElasticSearchCluster(c *myspec.ElasticsearchCluster) 
 		// Create Data Nodes
 		if err := p.k8sclient.CreateDataNodeDeployment("data", func() *int32 { i := int32(c.Spec.DataNodeReplicas); return &i }(), baseImage, c.Spec.Storage.StorageClass,
 			c.Spec.DataDiskSize, c.Spec.Resources, c.Spec.ImagePullSecrets, c.Spec.ImagePullPolicy, c.Spec.ServiceAccountName, c.ObjectMeta.Name,
-			c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost, c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
+			c.Spec.Instrumentation.StatsdHost, c.Spec.NetworkHost, c.ObjectMeta.Namespace, c.Spec.JavaOptions, c.Spec.S3Endpoint, c.Spec.S3Protocol, c.Spec.UseSSL, c.Spec.Scheduler.ElasticURL); err != nil {
 			logrus.Error("Error creating data node deployment ", err)
 			return err
 		}

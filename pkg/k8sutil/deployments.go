@@ -96,7 +96,7 @@ func (k *K8sutil) DeleteDeployment(clusterName, namespace, deploymentType string
 
 // CreateClientDeployment creates the client deployment
 func (k *K8sutil) CreateClientDeployment(baseImage string, replicas *int32, javaOptions string,
-	resources myspec.Resources, imagePullSecrets []myspec.ImagePullSecrets, imagePullPolicy, serviceAccountName, clusterName, statsdEndpoint, networkHost, namespace string, useSSL *bool) error {
+	resources myspec.Resources, imagePullSecrets []myspec.ImagePullSecrets, imagePullPolicy, serviceAccountName, clusterName, statsdEndpoint, networkHost, namespace, s3Endpoint, s3Protocol string, useSSL *bool) error {
 
 	component := fmt.Sprintf("elasticsearch-%s", clusterName)
 	discoveryServiceNameCluster := fmt.Sprintf("%s-%s", discoveryServiceName, clusterName)
@@ -221,6 +221,14 @@ func (k *K8sutil) CreateClientDeployment(baseImage string, replicas *int32, java
 									v1.EnvVar{
 										Name:  "NETWORK_HOST",
 										Value: networkHost,
+									},
+									v1.EnvVar{
+										Name:  "S3_ENDPOINT",
+										Value: s3Endpoint,
+									},
+									v1.EnvVar{
+										Name:  "S3_PROTOCOL",
+										Value: s3Protocol,
 									},
 								},
 								Ports: []v1.ContainerPort{
